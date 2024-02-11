@@ -3,14 +3,27 @@ import numpy as np
 from scipy.sparse import linalg
 
 # Function to generate the Hankel matrix introduced in "Learning Linear Dynamical Systems via Spectral Filtering" (Hazan, 2017)
-def generate_hankel_matrix_2017(L):
+def optimized_hankel_matrix_2017(L):
     i, j = np.indices((L, L))
-    sum_indices = i + j + 1
-    Z = 2 / (sum_indices ** 3) - sum_indices
+    ij_sum = i + j  # Adjusted for zero-based indexing
+    denominator = (ij_sum)**3 - ij_sum
+    Z = np.zeros((L, L))
+    Z[denominator != 0] = 2 / denominator[denominator != 0]
+    return Z
+
+def ref_hankel_matrix_2017(L):
+    Z = np.zeros((L, L))
+    for i in range(L):
+        for j in range(L):
+            # Compute the denominator according to the formula given
+            ij = i + j
+            denominator = ij*ij*ij - ij
+            if denominator != 0:
+                Z[i, j] = 2 / denominator
     return Z
 
 # Function to generate the Hankel matrix introduced in the appendix of "Spectral State Space Models" (Agarwal, 2024)
-def generate_hankel_matrix_2024(L):
+def optimized_hankel_matrix_2024(L):
     max_sum = 2 * (L - 1)
     ij_values = np.arange(2, max_sum + 1)
     values = ((-1) ** (ij_values - 2) + 1) * 8 / ((ij_values + 3) * (ij_values - 1) * (ij_values + 1))
@@ -19,6 +32,27 @@ def generate_hankel_matrix_2024(L):
     sum_indices = i + j
     Z = np.where(sum_indices >= 2, values[sum_indices - 2], 0)
     return Z
+
+def ref_hankel_matrix_2024(L):
+    Z = np.zeros((L, L))
+    for i in range(L):
+        for j in range(L):
+            ij = i + j
+            if ij >= 2:
+                numerator = ((-1) ** (ij - 2) + 1) * 8
+                denominator = ((ij + 3) * (ij - 1) * (ij + 1))
+                Z[i, j] = numerator / denominator
+    return Z
+
+# Verification function
+def verify_hankel_matrix_equality(L):
+    Z_reference = optimized_hankel_matrix_2017(L)
+    Z_optimized = ref_hankel_matrix_2017(L)
+    assert np.array_equal(Z_reference, Z_optimized), "Optimized 2017 version does not match"
+
+    Z_reference = optimized_hankel_matrix_2024(L)
+    Z_optimized = ref_hankel_matrix_2024(L)
+    assert np.array_equal(Z_reference, Z_optimized), "Optimized 2024 version does not match"
 
 # Function to compute and return truncated spectral decomposition
 def truncated_spectral_decomp(A, k):
@@ -43,7 +77,7 @@ def truncated_spectral_decomp(A, k):
 
     return eigenvals, eigenvecs.T
 
-def load_or_compute_eigen_data(L=256, k=16, matrix_version="2024", cache_file="eigenvalues_eigenvectors.npz"):
+def load_or_compute_eigen_data(L=256, k=16, matrix_version="2024", cache_file="hankel_spectra.npz"):
     eigenvals_key = f'eigenvals_{matrix_version}_L_{L}'
     eigenvecs_key = f'eigenvecs_{matrix_version}_L_{L}'
 
@@ -59,9 +93,9 @@ def load_or_compute_eigen_data(L=256, k=16, matrix_version="2024", cache_file="e
 
     # If the data is not available in the cache, compute it
     if matrix_version == '2017':
-        matrix = generate_hankel_matrix_2017(L)
+        matrix = optimized_hankel_matrix_2017(L)
     elif matrix_version == '2024':
-        matrix = generate_hankel_matrix_2024(L)
+        matrix = optimized_hankel_matrix_2024(L)
     else:
         raise ValueError("Invalid matrix version. Choose '2017' or '2024'.")
 
@@ -79,13 +113,24 @@ def load_or_compute_eigen_data(L=256, k=16, matrix_version="2024", cache_file="e
     print(f"Computed and cached eigenvalues and eigenvectors for version {matrix_version}, L={L}.")
     return eigenvals, eigenvecs
 
-# Example of loading or computing eigenvalues and eigenvectors
-matrix_version = '2017'
 
+# Unit test
+verify_hankel_matrix_equality(L=4)
+verify_hankel_matrix_equality(L=13)
+verify_hankel_matrix_equality(L=16)
+verify_hankel_matrix_equality(L=123)
+verify_hankel_matrix_equality(L=256)
+verify_hankel_matrix_equality(L=357)
+
+# Precompute powers of two
+matrix_version = '2017'
 k = 32
 powers_of_two = [2**i for i in range(8, 15)]
+
 for L in powers_of_two:
     eigenvals, eigenvecs = load_or_compute_eigen_data(L, k, matrix_version="2017")
     print(f"L={L} 2017 eigenvals={eigenvals}")
     eigenvals, eigenvecs = load_or_compute_eigen_data(L, k, matrix_version="2024")
     print(f"L={L} 2024 eigenvals={eigenvals}")
+
+print("Success")

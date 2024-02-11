@@ -1,6 +1,6 @@
-# Spectral State Space Models
+# Spectral State Space Models (Work in Progress Do not use)
 
-Work in progress implementation of "Spectral State Space Models" (Agarwal, 2024).
+Implementation of "Spectral State Space Models" (Agarwal, 2024): https://arxiv.org/pdf/2312.06837.pdf which was based on "Learning Linear Dynamical Systems via Spectral Filtering" (Hazan, 2017) https://arxiv.org/pdf/1711.00946.pdf
 
 ## Setup
 
