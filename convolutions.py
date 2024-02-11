@@ -4,9 +4,11 @@ import torch.nn as nn
 from hankel_spectra import load_or_compute_eigen_data
 
 class ConvolutionLayer(nn.Module):
-    def __init__(self, dim, L, k):
+    def __init__(self, d_in, d_out, L, k):
         super(ConvolutionLayer, self).__init__()
 
+        self.d_in = d_in
+        self.d_out = d_out
         self.L = L
         self.k = k
 
@@ -17,23 +19,37 @@ class ConvolutionLayer(nn.Module):
         self.eigenvalues = nn.Parameter(torch.tensor(eigenvalues, dtype=torch.float).pow(0.25), requires_grad=False)
 
         eigenvectors = torch.tensor(eigenvectors, dtype=torch.float)  # [k, L]
-        self.eigenvector_ffts = nn.Parameter(torch.fft.rfft(eigenvectors), requires_grad=False)  # [k, L//2+1]
+        eigenvector_ffts = nn.Parameter(torch.fft.rfft(eigenvectors), requires_grad=False)  # [k, L//2+1]
+        self.eigenvector_ffts_expanded = eigenvector_ffts.unsqueeze(0).unsqueeze(2)  # [1, k, 1, L//2+1]
 
-        self.M = nn.Parameter(torch.Tensor(k, L//2+1))
+        # K parallel d_in -> d_out learned projections
+        self.M = nn.Parameter(torch.Tensor(k, d_in, d_out))
         nn.init.xavier_uniform_(self.M)
 
     def forward(self, u):
-        L = u.size(-1)
-        assert self.L == L, "FIXME: Currently only works for fixed-length sequences"
+        # Ensure input shape is [B, L, D]
+        assert u.dim() == 3, "Input shape must be [B, L, D]"
+        B, L, D = u.shape
+        assert self.d_in == D, "Unexpected input dimension"
+        assert self.L == L, "Sequence length change is unsupported"
 
-        u_fft = torch.fft.rfft(u) # [B, L//2+1]
+        # [B, L, D] -> [B, D, L]
+        u_transposed = u.transpose(1, 2)
 
-        # Multiply u_fft by each eigenvector producing [B, k, L//2+1]
-        p_fft = torch.einsum('bi,kj->bkj', u_fft, self.eigenvector_ffts)
+        # Perform FFT on each sequence in the batch for all features [B, D, L//2+1]
+        u_fft = torch.fft.rfft(u_transposed)
 
-        convolutions = torch.fft.irfft(p_fft, n=L)  # [B, k, L]
+        # u_fft is [B, D, L//2+1], so we want to introduce the 'k' dimension
+        u_fft_expanded = u_fft.unsqueeze(1)  # [B, 1, D, L//2+1]
 
-        # Compute the sum of convolutions*eigenvalues^^(1/4)
-        result = torch.einsum('bkl,k->bl', convolutions, self.eigenvalues)
+        p_fft = u_fft_expanded * self.eigenvector_ffts_expanded  # [B, k, D, L//2+1]
 
-        return result
+        # Apply IFFT to convert back to time domain, resulting in [B, k, D, L]
+        convolutions = torch.fft.irfft(p_fft)
+
+        # Combined operations:
+        # 1. Scale by k eigenvalues
+        # 2. Permute from [B, k, D, L] to [B, k, L, D]
+        # 3. Apply M_k to project from D to d_out with K different projection matrices
+        # 4. Sum across k to get [B, L, d_out]
+        return torch.einsum('bkdl,k,kdp->blp', convolutions, self.eigenvalues, self.M)
