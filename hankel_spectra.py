@@ -11,17 +11,6 @@ def optimized_hankel_matrix_2017(L):
     Z[denominator != 0] = 2 / denominator[denominator != 0]
     return Z
 
-def ref_hankel_matrix_2017(L):
-    Z = np.zeros((L, L))
-    for i in range(L):
-        for j in range(L):
-            # Compute the denominator according to the formula given
-            ij = i + j
-            denominator = ij*ij*ij - ij
-            if denominator != 0:
-                Z[i, j] = 2 / denominator
-    return Z
-
 # Function to generate the Hankel matrix introduced in the appendix of "Spectral State Space Models" (Agarwal, 2024)
 def optimized_hankel_matrix_2024(L):
     max_sum = 2 * (L - 1)
@@ -33,36 +22,13 @@ def optimized_hankel_matrix_2024(L):
     Z = np.where(sum_indices >= 2, values[sum_indices - 2], 0)
     return Z
 
-def ref_hankel_matrix_2024(L):
-    Z = np.zeros((L, L))
-    for i in range(L):
-        for j in range(L):
-            ij = i + j
-            if ij >= 2:
-                numerator = ((-1) ** (ij - 2) + 1) * 8
-                denominator = ((ij + 3) * (ij - 1) * (ij + 1))
-                Z[i, j] = numerator / denominator
-    return Z
-
-# Verification function
-def verify_hankel_matrix_equality(L):
-    Z_reference = optimized_hankel_matrix_2017(L)
-    Z_optimized = ref_hankel_matrix_2017(L)
-    assert np.array_equal(Z_reference, Z_optimized), "Optimized 2017 version does not match"
-
-    Z_reference = optimized_hankel_matrix_2024(L)
-    Z_optimized = ref_hankel_matrix_2024(L)
-    assert np.array_equal(Z_reference, Z_optimized), "Optimized 2024 version does not match"
-
 # Function to compute and return truncated spectral decomposition
-def truncated_spectral_decomp(A, k):
+def truncated_spectral_decomp(A, k=32):
     L = A.shape[0]
     assert A.shape[0] == A.shape[1], "Must be square"
-    assert k < L, "k must be less than L"
 
     if k >= L:
         eigenvals, eigenvecs = np.linalg.eigh(A)
-        # Sort eigenvalues and eigenvectors
     else:
         eigenvals, eigenvecs = linalg.eigsh(
             A=A,
@@ -89,7 +55,7 @@ def load_or_compute_eigen_data(L=256, k=16, matrix_version="2024", cache_file="h
                 eigenvals = data[eigenvals_key]
                 eigenvecs = data[eigenvecs_key]
                 print(f"Loaded precomputed eigenvalues and eigenvectors for version {matrix_version}, L={L} from cache.")
-                return eigenvals, eigenvecs
+                return eigenvals[:k], eigenvecs[:k]
 
     # If the data is not available in the cache, compute it
     if matrix_version == '2017':
@@ -99,7 +65,7 @@ def load_or_compute_eigen_data(L=256, k=16, matrix_version="2024", cache_file="h
     else:
         raise ValueError("Invalid matrix version. Choose '2017' or '2024'.")
 
-    eigenvals, eigenvecs = truncated_spectral_decomp(matrix, k)
+    eigenvals, eigenvecs = truncated_spectral_decomp(matrix)
 
     # Update the cache with the newly computed values
     all_data = {}
@@ -111,26 +77,4 @@ def load_or_compute_eigen_data(L=256, k=16, matrix_version="2024", cache_file="h
     np.savez(cache_file, **all_data)
 
     print(f"Computed and cached eigenvalues and eigenvectors for version {matrix_version}, L={L}.")
-    return eigenvals, eigenvecs
-
-
-# Unit test
-verify_hankel_matrix_equality(L=4)
-verify_hankel_matrix_equality(L=13)
-verify_hankel_matrix_equality(L=16)
-verify_hankel_matrix_equality(L=123)
-verify_hankel_matrix_equality(L=256)
-verify_hankel_matrix_equality(L=357)
-
-# Precompute powers of two
-matrix_version = '2017'
-k = 32
-powers_of_two = [2**i for i in range(8, 15)]
-
-for L in powers_of_two:
-    eigenvals, eigenvecs = load_or_compute_eigen_data(L, k, matrix_version="2017")
-    print(f"L={L} 2017 eigenvals={eigenvals}")
-    eigenvals, eigenvecs = load_or_compute_eigen_data(L, k, matrix_version="2024")
-    print(f"L={L} 2024 eigenvals={eigenvals}")
-
-print("Success")
+    return eigenvals[:k], eigenvecs[:k]

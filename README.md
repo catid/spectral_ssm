@@ -15,6 +15,8 @@ conda create -n sssm python=3.10 -y && conda activate sssm
 pip install -U -r requirements.txt
 
 # Pregenerate Hankel spectra
-python hankel_spectra.py
-```
+python hankel_spectra_test.py
 
+# Test convolutions
+python convolutions_test.py
+```
