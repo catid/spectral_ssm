@@ -23,3 +23,14 @@ python convolutions_test.py
 # Test AR-STU layer
 python ar_stu_test.py
 ```
+
+## Train
+
+A basic training script is included for audio sequence data.  This breaks up a FLAC audio file into segments with MFCC embedding as features, which is a tensor [B, L, D].  B=number of segments, L=length of segment in audio samples, D=12 MFCC embeddings.  The batches are split into test/train sets.
+
+```bash
+python train.py
+```
+
+TODO:
+I think I'm mixing up some of the dimensions because it currently only produces one output per segment, when it should be producing L outputs.  Need to sleep on it.
