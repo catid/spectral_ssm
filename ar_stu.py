@@ -4,6 +4,8 @@ import torch.nn.functional as F
 
 from convolutions import ConvolutionLayer
 
+# FIXME: This is not implementing efficient causal batch mode.
+# It can only produce one output at a time so we expect B=1
 class AR_STULayer(nn.Module):
     def __init__(self, d_in, d_out, L, k=16, alpha=0.9):
         super(AR_STULayer, self).__init__()
@@ -27,16 +29,35 @@ class AR_STULayer(nn.Module):
 
         self.convolution_layer = ConvolutionLayer(d_in, d_out, L, k)
 
-    def forward(self, u, u_n1=None, u_n2=None, y_n1=None, y_n2=None):
+        self.reset()
+
+    def reset(self):
+        self.u_n1 = None
+        self.u_n2 = None
+        self.y_n1 = None
+        self.y_n2 = None
+
+    def remember(self, u, y):
+        device = u.device
+
+        self.u_n2 = self.u_n1
+        self.u_n1 = u.detach().to(device)
+
+        self.y_n2 = self.y_n1
+        self.y_n1 = y.detach().to(device)
+
+    def forward(self, u):
+        assert u.shape[0] == 1, "FIXME: Batch not supported yet"
         # This implements Eq (6) that defines AR-STU
-        result = self.Mu_0(u)
-        if u_n1 is not None:
-            result = result + self.Mu_1(u_n1)
-        if u_n2 is not None:
-            result = result + self.Mu_2(u_n2)
-        if y_n1 is not None:
-            result = result + self.My_n1(y_n1)
-        if y_n2 is not None:
-            result = result + self.My_n2(y_n2)
-        result = result + self.convolution_layer(u)
-        return result
+        y = self.Mu_0(u)
+        if self.u_n1 is not None:
+            y = y + self.Mu_1(self.u_n1)
+        if self.u_n2 is not None:
+            y = y + self.Mu_2(self.u_n2)
+        if self.y_n1 is not None:
+            y = y + self.My_n1(self.y_n1)
+        if self.y_n2 is not None:
+            y = y + self.My_n2(self.y_n2)
+        y = y + self.convolution_layer(u)
+        self.remember(u, y)
+        return y

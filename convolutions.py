@@ -19,8 +19,9 @@ class ConvolutionLayer(nn.Module):
         self.eigenvalues = nn.Parameter(torch.tensor(eigenvalues, dtype=torch.float).pow(0.25), requires_grad=False)
 
         eigenvectors = torch.tensor(eigenvectors, dtype=torch.float)  # [k, L]
-        eigenvector_ffts = nn.Parameter(torch.fft.rfft(eigenvectors), requires_grad=False)  # [k, L//2+1]
-        self.eigenvector_ffts_expanded = eigenvector_ffts.unsqueeze(0).unsqueeze(2)  # [1, k, 1, L//2+1]
+        eigenvector_ffts = torch.fft.rfft(eigenvectors)  # [k, L//2+1]
+        eigenvector_expanded = eigenvector_ffts.unsqueeze(0).unsqueeze(2)  # [1, k, 1, L//2+1]
+        self.eigenvector_ffts_expanded = nn.Parameter(eigenvector_expanded, requires_grad=False)
 
         # K parallel d_in -> d_out learned projections
         self.M = nn.Parameter(torch.Tensor(k, d_in, d_out))

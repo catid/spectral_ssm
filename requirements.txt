@@ -2,3 +2,5 @@ scikit-learn
 numpy
 torch
 einops
+torchaudio
+tqdm
