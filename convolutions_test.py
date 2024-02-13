@@ -31,34 +31,35 @@ def fft_conv1d_causal_conv(input_tensor, weight):
     B, C, L = input_tensor.shape  # Batch size, Channels, Length
     _, W_L = weight.shape  # Assuming weight shape is [Output Channels, Filter Length] for simplicity
 
-    # Step 1: Pad the input on the left to maintain causality
+    # Step 1: Pad the input for linear convolution, avoiding circular convolution
     pad_len = W_L - 1
-    input_padded = F.pad(input_tensor, (pad_len, 0), "constant", 0)  # Left padding to maintain causality
+    input_padded = F.pad(input_tensor, (pad_len, 0))  # Right padding
 
     # Step 2: Determine the length after padding for efficient FFT
-    # No need to double the size as we are not avoiding circular convolution here
     total_length_fft = input_padded.shape[-1]
 
+    # Pad input for FFT
+    input_padded_fft = F.pad(input_padded, (0, total_length_fft - input_padded.shape[-1]))
+
     # Prepare weight for FFT: Assume single output channel for simplicity
-    # Pad weight to match the FFT length
-    weight_padded_fft = F.pad(weight, (0, total_length_fft - W_L), "constant", 0)
+    # Pad and transform weight for FFT
+    weight_padded_fft = F.pad(weight, (0, total_length_fft - W_L))
     weight_padded_fft = weight_padded_fft.expand(B, -1, -1)  # Expand weight dimensions to match input batch size
 
-    # Perform FFT on padded input and weights
-    input_fft = torch.fft.rfft(input_padded, dim=2)
+    # FFT on padded input and weights
+    input_fft = torch.fft.rfft(input_padded_fft, dim=2)
     weight_fft = torch.fft.rfft(weight_padded_fft, dim=2)
 
-    # Element-wise multiplication in the frequency domain
+    # Element-wise multiplication in frequency domain
     result_fft = input_fft * weight_fft
 
-    # Inverse FFT to convert back to the time domain
+    # Inverse FFT to get back to time domain
     result_ifft = torch.fft.irfft(result_fft, n=total_length_fft, dim=2)
 
-    # Trim the output to match the original input length
-    result_trimmed = result_ifft[..., pad_len:]
+    # Trim the output to the original input size + ensure correct shape
+    result_trimmed = result_ifft[..., :L]
 
     return result_trimmed
-
 
 
 class TestCausalConv(unittest.TestCase):
