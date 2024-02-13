@@ -4,6 +4,7 @@ import torch.nn.functional as F
 
 from ar_stu import AR_STULayer
 
+# Basic MLP feed-forward network like in transformers
 class FeedForward(nn.Module):
     def __init__(self, d_in, d_out, mult=4):
         super(FeedForward, self).__init__()
@@ -17,6 +18,18 @@ class FeedForward(nn.Module):
 
     def forward(self, x):
         return self.net(x)
+
+# Causal average pooling: Output at time T is the average of prior values.
+class CausalAveragePooling(nn.Module):
+    def __init__(self):
+        super(CausalAveragePooling, self).__init__()
+
+    def forward(self, x):
+        B, L, D = x.shape
+        cumulative_sum = x.cumsum(dim=1)
+        timesteps = torch.arange(1, L + 1, device=x.device).view(1, L, 1).expand(B, L, D)
+        causal_average = cumulative_sum / timesteps
+        return causal_average # [B, L, D]
 
 class SpectralSSM(nn.Module):
     def __init__(self, d_in, d_hidden, d_out, L, num_layers=2, k=16, alpha=0.9):
@@ -36,6 +49,8 @@ class SpectralSSM(nn.Module):
             )
             self.layers.append(layer)
 
+        self.time_pool = CausalAveragePooling()
+
     def reset(self):
         for layer in self.layers:
             layer.reset()
@@ -48,9 +63,7 @@ class SpectralSSM(nn.Module):
         for layer in self.layers:
             y = layer(y)
 
-        yt = y.transpose(1, 2) # [B, D, L]
-        avg_pooled = F.avg_pool1d(yt, kernel_size=L)
-        avg_pooled = avg_pooled.transpose(1, 2) # [1, 1, D]
+        y = self.time_pool(y)
 
-        y = self.proj_out(avg_pooled) # [1, 1, d_out]
+        y = self.proj_out(y) # [B, L, d_out]
         return y
