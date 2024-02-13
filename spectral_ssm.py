@@ -38,17 +38,22 @@ class SpectralSSM(nn.Module):
         self.d_hidden = d_hidden
         self.d_out = d_out
 
+        # Fig.5: Embedding Layer
         self.proj_in = nn.Linear(d_in, d_hidden, bias=False)
+
+        # Fig.5: Dense (output) Layer [B, L, d_out]
         self.proj_out = nn.Linear(d_hidden, d_out, bias=False)
 
+        # Repeat num_layers times:
         self.layers = nn.ModuleList()
         for _ in range(num_layers):
             layer = nn.Sequential(
-                AR_STULayer(d_hidden, d_hidden, L, k, alpha),
-                FeedForward(d_hidden, d_hidden)  # Assuming FeedForward is a defined class
+                AR_STULayer(d_hidden, d_hidden, L, k, alpha), # Fig.5: STU
+                FeedForward(d_hidden, d_hidden) # Fig.5: MLP+Non-LIN
             )
             self.layers.append(layer)
 
+        # Fig.5: Time Pool
         self.time_pool = CausalAveragePooling()
 
     def reset(self):
@@ -66,4 +71,5 @@ class SpectralSSM(nn.Module):
         y = self.time_pool(y)
 
         y = self.proj_out(y) # [B, L, d_out]
+
         return y
