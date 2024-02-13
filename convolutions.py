@@ -3,6 +3,18 @@ import torch.nn as nn
 
 from hankel_spectra import load_or_compute_eigen_data
 
+# y = u * k (see convolutions_test.py for naive reference version)
+# k.dtype should be float
+# FP16 does not support odd sizes, has terrible accuracy, and it is also not any faster.
+def fft_causal_conv(u, k):
+    L = u.shape[-1]
+    assert k.dtype == torch.float, "Too much quality loss with fp16"
+    fft_size = 2*L
+    k_f = torch.fft.rfft(k, n=fft_size) / fft_size
+    u_f = torch.fft.rfft(u.to(k.dtype), n=fft_size)
+    y = torch.fft.irfft(u_f * k_f, n=fft_size, norm="forward")[..., :L]
+    return y
+
 class ConvolutionLayer(nn.Module):
     def __init__(self, d_in, d_out, L, k):
         super(ConvolutionLayer, self).__init__()
