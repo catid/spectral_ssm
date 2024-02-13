@@ -4,5 +4,3 @@ torch
 einops
 torchaudio
 tqdm
-
-causal_conv1d # https://github.com/Dao-AILab/causal-conv1d
