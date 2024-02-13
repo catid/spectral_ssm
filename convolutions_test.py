@@ -1,44 +1,62 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+
 import numpy as np
-
-from convolutions import ConvolutionLayer
-
+import random
 
 import unittest
 
-# Unit test class
-class TestARSTULayer(unittest.TestCase):
-    def test_forward_shape(self):
-        # Parameters for the test
-        d_in = 7  # Dimension of the input, not used in this test but required for compatibility
-        L = 16  # Length of the input sequence
-        k = 4  # Number of eigenvalues/eigenvectors
-        d_out = 5
-        batch_size = 2  # Number of sequences in a batch
+def ref_causal_conv(input_tensor, weight, bias=None, padding=0, groups=1):
+    B, D, L = input_tensor.shape
 
-        # Initialize the layer
-        conv_layer = ConvolutionLayer(d_in, d_out, L, k)
+    output = torch.zeros(B, D, L)
 
-        # Create a dummy input tensor of shape [batch_size, L]
-        input_tensor = torch.randn(batch_size, L, d_in)
+    for b in range(B):
+        for d in range(D):
+            for l in range(L):
+                for d_ in range(D):
+                    for l_ in range(L):
+                        if d_ == d and l_ - l + L - 1 >= 0 and l_ - l + L - 1 < L:
+                            output[b, d, l] += input_tensor[b, d_, l_] * weight[d, l_ - l + L - 1]
 
-        # Perform the forward pass
-        output_tensor = conv_layer(input_tensor)
+    return output
 
-        print(f"output_tensor = {output_tensor}")
+def conv1d_causal_conv(input_tensor, weight):
+    B, D, L = input_tensor.shape
 
-        has_nan = torch.isnan(output_tensor).any()
-        self.assertEqual(has_nan, False, f"Output is NaN")
+    return F.conv1d(input_tensor, weight.unsqueeze(1), bias=None, padding=L-1, groups=D)[..., :L]
 
-        # Check the output shape
-        expected_shape = (batch_size, L, d_out)
-        self.assertEqual(output_tensor.shape, expected_shape, f"Output tensor shape should be {expected_shape}")
+class TestCausalConv(unittest.TestCase):
+    def test_output_shape(self):
+        B, D, L = 2, 16, 128
 
-    # Additional tests can be added here to test other aspects of the ARSTULayer
+        input_tensor = torch.randn(B, D, L)
+        weight = torch.randn(D, L)
 
-torch.manual_seed(42)
+        method1 = ref_causal_conv(input_tensor, weight)
+        method2 = conv1d_causal_conv(input_tensor, weight)
+        
+        self.assertEqual(method1.shape, method2.shape)
 
-# Run the tests
+    def test_output_values(self):
+        B, D, L = 2, 16, 128
+
+        input_tensor = torch.randn(B, D, L)
+        weight = torch.randn(D, L)
+
+        method1 = ref_causal_conv(input_tensor, weight)
+        method2 = conv1d_causal_conv(input_tensor, weight)
+        
+        np.testing.assert_allclose(method1.numpy(), method2.numpy(), atol=1e-5)
+
+def seed_random(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
 if __name__ == '__main__':
+    seed_random(42)
     unittest.main()
