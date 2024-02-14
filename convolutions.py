@@ -3,6 +3,7 @@ import torch.nn as nn
 
 from hankel_spectra import load_or_compute_eigen_data
 
+# Input shapes: u [B, D, L], k [H, L]
 # y = u * k (see convolutions_test.py for naive reference version)
 # k.dtype should be float
 # FP16 does not support odd sizes, has terrible accuracy, and it is also not any faster.
@@ -12,7 +13,15 @@ def fft_causal_conv(u, k):
     fft_size = 2*L
     k_f = torch.fft.rfft(k, n=fft_size) / fft_size
     u_f = torch.fft.rfft(u.to(k.dtype), n=fft_size)
-    y = torch.fft.irfft(u_f * k_f, n=fft_size, norm="forward")[..., :L]
+
+    # Match up dimensions so we will produce [B, H, D, L]
+    # We should end up with D*H sequences from D sequences of length L
+    k_f = k_f.unsqueeze(0).unsqueeze(2)
+    u_f = u_f.unsqueeze(1)
+
+    prod = u_f * k_f
+
+    y = torch.fft.irfft(prod, n=fft_size, norm="forward")[..., :L]
     return y
 
 class ConvolutionLayer(nn.Module):
