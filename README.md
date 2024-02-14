@@ -25,6 +25,3 @@ A basic training script is included for audio sequence data.  This breaks up a F
 ```bash
 python train.py
 ```
-
-TODO:
-I think I'm mixing up some of the dimensions because it currently only produces one output per segment, when it should be producing L outputs.  Need to sleep on it.

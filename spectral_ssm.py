@@ -32,7 +32,7 @@ class CausalAveragePooling(nn.Module):
         return causal_average # [B, L, D]
 
 class SpectralSSM(nn.Module):
-    def __init__(self, d_in, d_hidden, d_out, L, num_layers=2, k=16, alpha=0.9):
+    def __init__(self, d_in, d_hidden, d_out, L, num_layers=2):
         super(SpectralSSM, self).__init__()
         self.d_in = d_in
         self.d_hidden = d_hidden
@@ -48,7 +48,7 @@ class SpectralSSM(nn.Module):
         self.layers = nn.ModuleList()
         for _ in range(num_layers):
             layer = nn.Sequential(
-                AR_STULayer(d_hidden, d_hidden, L, k, alpha), # Fig.5: STU
+                AR_STULayer(d_hidden, d_hidden, L), # Fig.5: STU
                 FeedForward(d_hidden, d_hidden) # Fig.5: MLP+Non-LIN
             )
             self.layers.append(layer)

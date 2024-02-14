@@ -235,9 +235,7 @@ def main(args):
         d_hidden=input_dim*2,
         d_out=input_dim,
         L=args.segment_length,
-        num_layers=2,
-        k=16,
-        alpha=0.9)
+        num_layers=2)
 
     print(f"Model parameters: {count_parameters(model)}")
 
