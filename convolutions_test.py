@@ -4,7 +4,7 @@ import numpy as np
 import time
 import unittest
 
-from convolutions import fft_causal_conv
+from convolutions import fft_causal_conv, ConvolutionLayer
 
 def ref_causal_convolution(u, k):
     B, D, L = u.shape  # Batch size, Dimension, Length of the input signal
@@ -69,6 +69,44 @@ class TestNaiveCausalConvolution(unittest.TestCase):
         modified_out = modified_out[..., :L-R]
 
         np.testing.assert_allclose(original_out.cpu().numpy(), modified_out.cpu().numpy(), atol=2e-3)
+
+class TestConvolutionLayer(unittest.TestCase):
+    def setUp(self):
+        # Example dimensions
+        self.D_in = 2
+        self.D_out = 4
+        self.L = 16
+        self.k = 3
+        
+        # Initialize the ConvolutionLayer
+        self.layer = ConvolutionLayer(self.D_in, self.D_out, self.L, self.k)
+
+    def test_parameter_shapes(self):
+        # Verify the shape of the learned projections M
+        self.assertEqual(self.layer.M.shape, (self.k, self.D_in, self.D_out),
+                         "Shape of learned projections M is incorrect.")
+
+        # Verify the shape of eigenvector_k_f
+        expected_eigenvector_shape = (1, self.k, 1, self.L+1)
+        self.assertEqual(self.layer.eigenvector_k_f.shape, expected_eigenvector_shape,
+                         "Shape of eigenvector_k_f is incorrect.")
+
+    def test_forward_shape(self):
+        # Create a dummy input tensor
+        u = torch.randn(1, self.D_in, self.L)  # Note: Ensure input shape is [B, D, L]
+
+        # Forward pass
+        y = self.layer(u)
+
+        # Expected output shape [B, D_out, L]
+        expected_shape = (1, self.D_out, self.L)
+
+        # Check the output shape
+        self.assertEqual(y.shape, expected_shape,
+                         f"Output shape is incorrect. Expected {expected_shape}, got {y.shape}.")
+
+    # Add more tests as needed, e.g., to verify numerical outputs or layer properties
+
 
 if __name__ == '__main__':
     unittest.main()

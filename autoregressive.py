@@ -1,19 +1,15 @@
 import torch.nn as nn
 
-# This one 
 class AutoRegressiveCausalLayer(nn.Module):
-    def __init__(self, D_in, D_out, K=3):
+    def __init__(self, D_in, D_out, sum_count=3):
         super(AutoRegressiveCausalLayer, self).__init__()
 
-        # Assuming A, B, and C are equivalent to convolutional filters
-        self.K = K
-        self.conv = nn.Conv1d(D_in, D_out, kernel_size=K, padding=K-1, bias=False)
+        self.sum_count = sum_count
+        self.conv = nn.Conv1d(D_in, D_out, kernel_size=sum_count, padding=sum_count-1, bias=False)
 
         nn.init.zeros_(self.conv.weight)
 
     def forward(self, x):
-        # x is expected to have shape [B, D, L], but Conv1d expects [B, C, L]
-        # No need to permute if x is already in the correct shape
-        y = self.conv(x)  # No need for extra slicing if padding is adjusted correctly
-        y = y[:, :, :-(self.K-1)] if self.K > 1 else y
+        y = self.conv(x)
+        y = y[:, :, :-(self.sum_count-1)] if self.sum_count > 1 else y
         return y

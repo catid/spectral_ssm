@@ -36,13 +36,13 @@ def verify_hankel_matrix_equality(L):
 
 # Precompute powers of two
 matrix_version = '2017'
-k = 32
+K = 32
 powers_of_two = [2**i for i in range(8, 15)]
 
 for L in powers_of_two:
-    eigenvals, eigenvecs = load_or_compute_eigen_data(L, k, matrix_version="2017")
+    eigenvals, eigenvecs = load_or_compute_eigen_data(L, K, matrix_version="2017")
     print(f"L={L} 2017 eigenvals={eigenvals}")
-    eigenvals, eigenvecs = load_or_compute_eigen_data(L, k, matrix_version="2024")
+    eigenvals, eigenvecs = load_or_compute_eigen_data(L, K, matrix_version="2024")
     print(f"L={L} 2024 eigenvals={eigenvals}")
 
 print("Success")

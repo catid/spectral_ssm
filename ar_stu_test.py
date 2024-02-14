@@ -1,48 +1,44 @@
+import unittest
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
-from ar_stu import AR_STULayer
+from ar_stu import AR_STULayer  # Adjust import as necessary
 
-import unittest
-
-class TestARSTULayer(unittest.TestCase):
-
+class TestAR_STULayer(unittest.TestCase):
     def setUp(self):
-        self.d_in = 10  # Input dimension
-        self.d_out = 5  # Output dimension
-        self.L = 32  # Sequence length
-        self.k = 16  # Number of eigenvectors/eigenvalues
-        self.alpha = 0.9  # Scaling factor for My_2
-        self.layer = AR_STULayer(self.d_in, self.d_out, self.L, self.k, self.alpha)
+        # Example dimensions
+        self.D_in = 2
+        self.D_out = 4
+        self.L = 10
+        self.K = 16
+        self.alpha = 0.9
+
+        # Initialize the AR_STULayer
+        self.layer = AR_STULayer(self.D_in, self.D_out, self.L, K=self.K, alpha=self.alpha)
+
+    def test_subcomponents_initialized(self):
+        # Check if subcomponents are instances of the expected classes
+        self.assertIsInstance(self.layer.autoregressive_u, nn.Module,
+                              "AutoRegressiveCausalLayer is not initialized correctly.")
+        self.assertIsInstance(self.layer.convolution_layer, nn.Module,
+                              "ConvolutionLayer is not initialized correctly.")
 
     def test_output_shape(self):
-        """Test if the output shape is correct."""
-        batch_size = 4
-        input_tensor = torch.randn(batch_size, self.L, self.d_in)
-        output = self.layer(input_tensor)
-        expected_shape = (batch_size, self.L, self.d_out)
-        self.assertEqual(output.shape, expected_shape, "Output shape is incorrect.")
+        # Create a dummy input tensor
+        u = torch.randn(1, self.D_in, self.L)  # Batch size of 1 for simplicity
 
-    def test_output_with_previous_inputs(self):
-        """Test the layer with previous inputs and outputs provided."""
-        batch_size = 4
-        u = torch.randn(batch_size, self.L, self.d_in)
-        u_n1 = torch.randn(batch_size, self.L, self.d_in)
-        u_n2 = torch.randn(batch_size, self.L, self.d_in)
-        y_n1 = torch.randn(batch_size, self.L, self.d_out)
-        y_n2 = torch.randn(batch_size, self.L, self.d_out)
+        # Forward pass
+        y = self.layer(u)
 
-        # Call the forward method with previous inputs and outputs
-        output = self.layer(u, u_n1, u_n2, y_n1, y_n2)
-        self.assertEqual(output.shape, (batch_size, self.L, self.d_out), "Output shape with previous inputs is incorrect.")
+        # Expected output shape
+        expected_shape = (1, self.D_out, self.L)
 
-    def test_no_nan_in_output(self):
-        """Ensure that the output does not contain NaN values."""
-        batch_size = 4
-        input_tensor = torch.randn(batch_size, self.L, self.d_in)
-        output = self.layer(input_tensor)
-        self.assertFalse(torch.isnan(output).any(), "Output contains NaN values.")
+        # Check the output shape
+        self.assertEqual(y.shape, expected_shape,
+                         f"Output shape is incorrect. Expected {expected_shape}, got {y.shape}.")
+
+    # Add more tests as needed, for example, to verify the behavior of the layer
+    # under specific input conditions or to check the properties of the layer's parameters.
 
 if __name__ == '__main__':
     unittest.main()

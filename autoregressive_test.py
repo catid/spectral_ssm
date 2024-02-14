@@ -7,7 +7,7 @@ from autoregressive import AutoRegressiveCausalLayer
 def naive_auto_regressive_causal_model(x, D_out, weights, K=3):
     B, D_in, L = x.shape
     y = torch.zeros(B, D_out, L, dtype=x.dtype, device=x.device)
-    
+
     # Apply the weights to simulate the convolution operation
     for t in range(L):
         for d_out in range(D_out):

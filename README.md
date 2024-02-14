@@ -20,6 +20,9 @@ python hankel_spectra_test.py
 # Test convolutions
 python convolutions_test.py
 
+# Test autoregressive
+python autoregressive_test.py
+
 # Test AR-STU layer
 python ar_stu_test.py
 ```

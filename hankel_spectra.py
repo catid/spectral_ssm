@@ -43,7 +43,7 @@ def truncated_spectral_decomp(A, k=32):
 
     return eigenvals, eigenvecs.T
 
-def load_or_compute_eigen_data(L=256, k=16, matrix_version="2024", cache_file="hankel_spectra.npz"):
+def load_or_compute_eigen_data(L=256, K=16, matrix_version="2024", cache_file="hankel_spectra.npz"):
     eigenvals_key = f'eigenvals_{matrix_version}_L_{L}'
     eigenvecs_key = f'eigenvecs_{matrix_version}_L_{L}'
 
@@ -55,7 +55,7 @@ def load_or_compute_eigen_data(L=256, k=16, matrix_version="2024", cache_file="h
                 eigenvals = data[eigenvals_key]
                 eigenvecs = data[eigenvecs_key]
                 print(f"Loaded precomputed eigenvalues and eigenvectors for version {matrix_version}, L={L} from cache.")
-                return eigenvals[:k], eigenvecs[:k]
+                return eigenvals[:K], eigenvecs[:K]
 
     # If the data is not available in the cache, compute it
     if matrix_version == '2017':
@@ -77,4 +77,4 @@ def load_or_compute_eigen_data(L=256, k=16, matrix_version="2024", cache_file="h
     np.savez(cache_file, **all_data)
 
     print(f"Computed and cached eigenvalues and eigenvectors for version {matrix_version}, L={L}.")
-    return eigenvals[:k], eigenvecs[:k]
+    return eigenvals[:K], eigenvecs[:K]
