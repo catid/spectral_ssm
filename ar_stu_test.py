@@ -10,11 +10,9 @@ class TestAR_STULayer(unittest.TestCase):
         self.D_in = 7
         self.D_out = 11
         self.L = 2048
-        self.K = 13
-        self.alpha = 0.9
 
         # Initialize the AR_STULayer
-        self.layer = AR_STULayer(self.D_in, self.D_out, self.L, K=self.K, alpha=self.alpha)
+        self.layer = AR_STULayer(self.D_in, self.D_out, self.L)
 
     def test_subcomponents_initialized(self):
         # Check if subcomponents are instances of the expected classes
@@ -25,7 +23,7 @@ class TestAR_STULayer(unittest.TestCase):
 
     def test_output_shape(self):
         # Create a dummy input tensor
-        u = torch.randn(3, self.L, self.D_in)  # Batch size of 1 for simplicity
+        u = torch.randn(3, self.L, self.D_in)
 
         # Forward pass
         y = self.layer(u)

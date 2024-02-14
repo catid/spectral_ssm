@@ -2,7 +2,7 @@ import unittest
 import torch
 import torch.nn.init as init
 
-from autoregressive import AutoRegressiveCausalLayer
+from autoregressive import AutoRegressiveCausalInput
 
 def naive_auto_regressive_causal_model(x, D_out, weights, K=3):
     B, D_in, L = x.shape
@@ -29,8 +29,7 @@ class TestAutoRegressiveCausalLayer(unittest.TestCase):
         D_out = 4
         K=3
 
-        model = AutoRegressiveCausalLayer(D_in, D_out, K)
-        init.xavier_uniform_(model.conv.weight)
+        model = AutoRegressiveCausalInput(D_in, D_out, K)
 
         # Should be [D_out, D_in, K]
         print(f"B={B} D_in={D_in} D_out={D_out} K={K} L={L} model.conv.weight.shape = {model.conv.weight.shape}")
@@ -50,15 +49,14 @@ class TestAutoRegressiveCausalLayer(unittest.TestCase):
 
         # Test if y and z are close within tolerance
         self.assertTrue(torch.allclose(y, z, rtol=1e-05, atol=1e-06),
-                        msg="The outputs of the AutoRegressiveCausalLayer and the naive implementation do not match within tolerance.")
+                        msg="The outputs of the AutoRegressiveCausalInput and the naive implementation do not match within tolerance.")
 
     def test_causality(self):
         B, D_in, L = 1, 7, 2048
         D_out = 13
         K = 3
 
-        model = AutoRegressiveCausalLayer(D_in, D_out, K)
-        init.xavier_uniform_(model.conv.weight)
+        model = AutoRegressiveCausalInput(D_in, D_out, K)
 
         # Create a base input tensor filled with zeros
         x_base = torch.zeros(B, D_in, L)
