@@ -4,3 +4,4 @@ torch
 einops
 torchaudio
 tqdm
+pytest

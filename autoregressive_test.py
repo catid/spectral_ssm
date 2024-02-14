@@ -53,8 +53,8 @@ class TestAutoRegressiveCausalLayer(unittest.TestCase):
                         msg="The outputs of the AutoRegressiveCausalLayer and the naive implementation do not match within tolerance.")
 
     def test_causality(self):
-        B, D_in, L = 1, 2, 16
-        D_out = 4
+        B, D_in, L = 1, 7, 2048
+        D_out = 13
         K = 3
 
         model = AutoRegressiveCausalLayer(D_in, D_out, K)

@@ -73,21 +73,21 @@ class TestNaiveCausalConvolution(unittest.TestCase):
 class TestConvolutionLayer(unittest.TestCase):
     def setUp(self):
         # Example dimensions
-        self.D_in = 2
-        self.D_out = 4
-        self.L = 16
-        self.k = 3
+        self.D_in = 3
+        self.D_out = 11
+        self.L = 2048
+        self.K = 13
         
         # Initialize the ConvolutionLayer
-        self.layer = ConvolutionLayer(self.D_in, self.D_out, self.L, self.k)
+        self.layer = ConvolutionLayer(self.D_in, self.D_out, self.L, self.K)
 
     def test_parameter_shapes(self):
         # Verify the shape of the learned projections M
-        self.assertEqual(self.layer.M.shape, (self.k, self.D_in, self.D_out),
+        self.assertEqual(self.layer.M.shape, (self.K, self.D_in, self.D_out),
                          "Shape of learned projections M is incorrect.")
 
         # Verify the shape of eigenvector_k_f
-        expected_eigenvector_shape = (1, self.k, 1, self.L+1)
+        expected_eigenvector_shape = (1, self.K, 1, self.L+1)
         self.assertEqual(self.layer.eigenvector_k_f.shape, expected_eigenvector_shape,
                          "Shape of eigenvector_k_f is incorrect.")
 

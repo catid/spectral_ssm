@@ -7,10 +7,10 @@ from ar_stu import AR_STULayer  # Adjust import as necessary
 class TestAR_STULayer(unittest.TestCase):
     def setUp(self):
         # Example dimensions
-        self.D_in = 2
-        self.D_out = 4
-        self.L = 10
-        self.K = 16
+        self.D_in = 7
+        self.D_out = 11
+        self.L = 2048
+        self.K = 13
         self.alpha = 0.9
 
         # Initialize the AR_STULayer

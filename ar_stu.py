@@ -21,10 +21,7 @@ class AR_STULayer(nn.Module):
         self.convolution_layer = ConvolutionLayer(D_in, D_out, L, K)
 
     def forward(self, u):
-        print(f"u.shape={u.shape}")
         y = self.autoregressive_u(u)
-        print(f"y.shape={y.shape}")
         # FIXME: Add k_y AR components
         y = y + self.convolution_layer(u)
-        print(f"y.shape={y.shape}")
         return y

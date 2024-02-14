@@ -64,8 +64,6 @@ class ConvolutionLayer(nn.Module):
 
         convolutions = fft_causal_conv_fftk(u, self.eigenvector_k_f)
 
-        print(f"B={B} D_in={D_in} D_out={self.D_out} L={L} convolutions.shape={convolutions.shape}")
-
         # Combined operations:
         # 1. Scale by k eigenvalues
         # 2. Permute from [B, k, D_in, L] to [B, k, L, D_in]
@@ -73,7 +71,5 @@ class ConvolutionLayer(nn.Module):
         # 4. Sum across k to get [B, L, D_out]
         # 5. Permute from [B, L, D] to [B, D, L]
         result = torch.einsum('bkdl,k,kdp->bpl', convolutions, self.eigenvalues, self.M)
-
-        print(f"result.shape={result.shape}")
 
         return result
