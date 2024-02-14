@@ -58,16 +58,7 @@ class ConvolutionLayer(nn.Module):
         # [B, L, D] -> [B, D, L]
         u_transposed = u.transpose(1, 2)
 
-        # Perform FFT on each sequence in the batch for all features [B, D, L//2+1]
-        u_fft = torch.fft.rfft(u_transposed)
-
-        # u_fft is [B, D, L//2+1], so we want to introduce the 'k' dimension
-        u_fft_expanded = u_fft.unsqueeze(1)  # [B, 1, D, L//2+1]
-
-        p_fft = u_fft_expanded * self.eigenvector_ffts_expanded  # [B, k, D, L//2+1]
-
-        # Apply IFFT to convert back to time domain, resulting in [B, k, D, L]
-        convolutions = torch.fft.irfft(p_fft)
+        convolutions = fft_causal_conv(u, self.eigenvector_ffts_expanded)
 
         # Combined operations:
         # 1. Scale by k eigenvalues
