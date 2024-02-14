@@ -25,13 +25,13 @@ class TestAR_STULayer(unittest.TestCase):
 
     def test_output_shape(self):
         # Create a dummy input tensor
-        u = torch.randn(1, self.D_in, self.L)  # Batch size of 1 for simplicity
+        u = torch.randn(3, self.L, self.D_in)  # Batch size of 1 for simplicity
 
         # Forward pass
         y = self.layer(u)
 
         # Expected output shape
-        expected_shape = (1, self.D_out, self.L)
+        expected_shape = (3, self.L, self.D_out)
 
         # Check the output shape
         self.assertEqual(y.shape, expected_shape,

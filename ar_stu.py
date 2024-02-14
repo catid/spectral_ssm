@@ -5,7 +5,6 @@ import torch.nn.functional as F
 from convolutions import ConvolutionLayer
 from autoregressive import AutoRegressiveCausalLayer
 
-# Expects input in [B, D, L] shape
 class AR_STULayer(nn.Module):
     def __init__(self, D_in, D_out, L, K=16, alpha=0.9):
         super(AR_STULayer, self).__init__()
@@ -21,7 +20,11 @@ class AR_STULayer(nn.Module):
         self.convolution_layer = ConvolutionLayer(D_in, D_out, L, K)
 
     def forward(self, u):
+        u = u.permute(0, 2, 1) # Convert to [B, D, L]
+
         y = self.autoregressive_u(u)
         # FIXME: Add k_y AR components
         y = y + self.convolution_layer(u)
+
+        y = y.permute(0, 2, 1) # Convert to [B, L, D]
         return y

@@ -108,7 +108,7 @@ class AudioSegmentDataset(Dataset):
         processed_audio = preprocess_audio(args.file_path)
 
         # Segments are (samples, sample length=500, features=12)
-        self.segments = segment_audio(processed_audio, args.segment_length)
+        self.segments = segment_audio(processed_audio, args.segment_length+1)
 
         print(f"Dataset shape: {self.segments.shape}")
 
@@ -127,7 +127,7 @@ class AudioSegmentDataset(Dataset):
         
         # Target features: All time steps except the first
         target_features = segment[1:]
-        
+
         return input_features, target_features
 
 def generate_audio_datasets(args):
@@ -230,7 +230,14 @@ def main(args):
     # RNN performs much better
     #model = AudioRNN(args, dim=input_dim)
     #model = AudioMLP(args, dim=input_dim)
-    model = SpectralSSM(d_in=input_dim, d_hidden=input_dim*2, d_out=input_dim, L=args.segment_length, num_layers=2, k=16, alpha=0.9)
+    model = SpectralSSM(
+        d_in=input_dim,
+        d_hidden=input_dim*2,
+        d_out=input_dim,
+        L=args.segment_length,
+        num_layers=2,
+        k=16,
+        alpha=0.9)
 
     print(f"Model parameters: {count_parameters(model)}")
 
@@ -243,7 +250,7 @@ if __name__ == "__main__":
     parser.add_argument('--lr', type=float, default=0.1, help='Learning rate.')
     parser.add_argument('--hidden_size', type=int, default=128, help='Size of RNN hidden state.')
     parser.add_argument('--batch_size', type=int, default=1, help='Size of RNN hidden state.')
-    parser.add_argument('--segment_length', type=int, default=512, help='Input segment size.')
+    parser.add_argument('--segment_length', type=int, default=1024, help='Input segment size.')
     parser.add_argument('--seed', type=int, default=12345, help='Seed for randomization of data loader')
     args = parser.parse_args()
 
