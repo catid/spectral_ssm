@@ -9,10 +9,6 @@ class AutoRegressiveCausalInput(nn.Module):
     def __init__(self, D_in, D_out, Ku=3):
         super(AutoRegressiveCausalInput, self).__init__()
 
-        print(f"D_in = {D_in}")
-        print(f"D_ou = {D_out}")
-        print(f"Ku = {Ku}")
-
         self.Ku = Ku
         self.conv = nn.Conv1d(D_in, D_out, kernel_size=Ku, padding=Ku-1, bias=False)
 

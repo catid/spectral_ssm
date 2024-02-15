@@ -230,12 +230,7 @@ def main(args):
     # RNN performs much better
     #model = AudioRNN(args, dim=input_dim)
     #model = AudioMLP(args, dim=input_dim)
-    model = SpectralSSM(
-        d_in=input_dim,
-        d_hidden=input_dim*2,
-        d_out=input_dim,
-        L=args.segment_length,
-        num_layers=2)
+    model = SpectralSSM(d_in=input_dim, d_hidden=input_dim*2, d_out=input_dim, L=args.segment_length, num_layers=2)
 
     print(f"Model parameters: {count_parameters(model)}")
 
