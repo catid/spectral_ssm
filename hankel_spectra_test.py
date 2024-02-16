@@ -4,26 +4,35 @@ import unittest
 from hankel_spectra import optimized_hankel_matrix_2017, optimized_hankel_matrix_2024, load_or_compute_eigen_data
 
 def ref_hankel_matrix_2017(L):
-    Z = np.zeros((L, L))
-    for i in range(L):
-        for j in range(L):
-            # Compute the denominator according to the formula given
-            ij = i + j
-            denominator = ij*ij*ij - ij
-            if denominator != 0:
-                Z[i, j] = 2 / denominator
-    return Z
+    # Initialize the matrix with zeros
+    H = [[0 for _ in range(L)] for _ in range(L)]
+
+    # Loop through each element to compute its value
+    for i in range(1, L + 1):  # Adjust for 1-based indexing
+        for j in range(1, L + 1):  # Adjust for 1-based indexing
+            # Compute H[i, j] according to the given formula
+            H[i-1][j-1] = 2 / ((i + j) ** 3 - (i + j))
+
+    return H
 
 def ref_hankel_matrix_2024(L):
-    Z = np.zeros((L, L))
-    for i in range(L):
+    # Initialize an empty matrix of size LxL
+    H = np.zeros((L, L))
+    
+    # Loop over each element in the matrix
+    for i in range(L):  # Adjusting for 0-based indexing in the loop
         for j in range(L):
-            ij = i + j
-            if ij >= 2:
-                numerator = ((-1) ** (ij - 2) + 1) * 8
-                denominator = ((ij + 3) * (ij - 1) * (ij + 1))
-                Z[i, j] = numerator / denominator
-    return Z
+            # Compute the 1-based indices
+            i_1based = i + 1
+            j_1based = j + 1
+            
+            # Compute H[i, j] using the specified formula
+            numerator = ((-1) ** (i_1based + j_1based - 2) + 1) * 8
+            denominator = (i_1based + j_1based + 3) * (i_1based + j_1based - 1) * (i_1based + j_1based + 1)
+            
+            H[i, j] = numerator / denominator
+    
+    return H
 
 class TestHankelMatrices(unittest.TestCase):
     
