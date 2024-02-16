@@ -4,23 +4,21 @@ from scipy.sparse import linalg
 
 # Function to generate the Hankel matrix introduced in "Learning Linear Dynamical Systems via Spectral Filtering" (Hazan, 2017)
 def optimized_hankel_matrix_2017(L):
-    i, j = np.indices((L, L))
-    ij_sum = i + j  # Adjusted for zero-based indexing
-    denominator = (ij_sum)**3 - ij_sum
-    Z = np.zeros((L, L))
-    Z[denominator != 0] = 2 / denominator[denominator != 0]
-    return Z
+    i, j = np.indices((L, L)) + 1  # Adjust for 1-based indexing
+
+    # Compute H[i, j] using vectorized operations
+    H = 2 / ((i + j) ** 3 - (i + j))
+    return H
 
 # Function to generate the Hankel matrix introduced in the appendix of "Spectral State Space Models" (Agarwal, 2024)
 def optimized_hankel_matrix_2024(L):
-    max_sum = 2 * (L - 1)
-    ij_values = np.arange(2, max_sum + 1)
-    values = ((-1) ** (ij_values - 2) + 1) * 8 / ((ij_values + 3) * (ij_values - 1) * (ij_values + 1))
-    Z = np.zeros((L, L))
-    i, j = np.indices(Z.shape)
-    sum_indices = i + j
-    Z = np.where(sum_indices >= 2, values[sum_indices - 2], 0)
-    return Z
+    i, j = np.indices((L, L)) + 1  # Adjust for 1-based indexing
+
+    # Compute H[i, j] using vectorized operations
+    numerator = ((-1) ** (i + j - 2) + 1) * 8
+    denominator = (i + j + 3) * (i + j - 1) * (i + j + 1)
+    H = numerator / denominator
+    return H
 
 # Function to compute and return truncated spectral decomposition
 def truncated_spectral_decomp(A, k=32):
