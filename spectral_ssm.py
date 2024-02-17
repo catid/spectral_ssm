@@ -55,7 +55,7 @@ class SpectralSSM(nn.Module):
         self.layers = nn.ModuleList()
         for _ in range(num_layers):
             layer = nn.Sequential(
-                #AR_STULayer(d_hidden, d_hidden, L), # Fig.5: STU
+                AR_STULayer(d_hidden, d_hidden, L), # Fig.5: STU
                 FeedForward(d_hidden, d_hidden) # Fig.5: MLP+Non-LIN
             )
             self.layers.append(layer)
@@ -71,7 +71,7 @@ class SpectralSSM(nn.Module):
         y = self.proj_in(u)
         for layer in self.layers:
             y = layer(y)
-        #y = self.time_pool(y)
+        y = self.time_pool(y)
         y = self.proj_out(y) # [B, L, d_out]
         #print(f"y = {y}")
         return y
