@@ -2,8 +2,8 @@ import torch
 import torch.nn as nn
 import numpy as np
 
-torch.backends.cudnn.deterministic = True
-torch.backends.cudnn.benchmark = False
+#torch.backends.cudnn.deterministic = True
+#torch.backends.cudnn.benchmark = False
 
 # Prettify printing tensors when debugging
 import lovely_tensors as lt
@@ -109,21 +109,37 @@ def segment_audio(mfcc, segment_length):
     return segments
 
 import os
+import multiprocessing
+from multiprocessing import Pool
+
+def dataset_process_file(file_path):
+    processed_audio = preprocess_audio(file_path)
+    # +1 because we remove one element in __getitem__ below
+    parts = segment_audio(processed_audio, args.segment_length + 1)
+    return parts
 
 class AudioSegmentDataset(Dataset):
     def __init__(self, args):
 
+        audio_files = []
         for filename in os.listdir(args.dir):
             # torchaudio does not have an API to check if a file extension is supported
             if filename.lower().endswith(('.wav', '.mp3', '.flac')):
-                print(f"filename: {filename}")
+                audio_files.append(os.path.join(args.dir, filename))
 
-        processed_audio = preprocess_audio(args.file_path)
+        print(f"Loading {len(audio_files)} audio files..")
 
-        # Segments are (samples, sample length=500, features=12)
-        self.segments = segment_audio(processed_audio, args.segment_length+1)
+        # Use multiprocessing Pool to process files in parallel
+        with Pool(processes=multiprocessing.cpu_count()) as pool:
+            all_parts = pool.map(dataset_process_file, audio_files)
 
-        print(f"Dataset shape: {self.segments.shape}")
+        # Combine parts into one dataset
+        self.segments = np.concatenate(all_parts, axis=0)
+
+        print(f"Loaded dataset shape: {self.segments.shape}")
+
+    def premove_to_gpu(self):
+        self.segments = torch.tensor(self.segments).to("cuda")
 
     def get_feature_dim(self):
         return self.segments.shape[2]
@@ -154,10 +170,11 @@ def generate_audio_datasets(args):
     train_dataset, validation_dataset = random_split(dataset, [training_size, validation_size])
 
     # Create DataLoaders
+    # Note: num_workers=4 and/or pin_memory=True do not improve training throughput
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
     val_loader = DataLoader(validation_dataset, batch_size=args.batch_size, shuffle=False)
 
-    return train_loader, val_loader, mfcc_feature_dim
+    return dataset, train_loader, val_loader, mfcc_feature_dim
 
 
 ################################################################################
@@ -166,12 +183,20 @@ def generate_audio_datasets(args):
 import torch.optim as optim
 from tqdm.auto import tqdm
 
-def train(model, train_loader, val_loader, args):
+def train(dataset, model, train_loader, val_loader, args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model.to(device)
 
-    #model = torch.compile(model)
+    if torch.cuda.is_available():
+        dataset.premove_to_gpu()
+
+    if args.mgpu:
+        if torch.cuda.device_count() > 1:
+            model = nn.DataParallel(model)
+
+    if args.compile:
+        model = torch.compile(model)
 
     criterion = nn.MSELoss()
     optimizer = optim.AdamW(model.parameters(), lr=args.lr)
@@ -186,11 +211,10 @@ def train(model, train_loader, val_loader, args):
         sum_train_loss = 0.0
         for inputs, targets in train_loader:
             inputs, targets = inputs.to(device), targets.to(device)
-            print(f"epoch {epoch} inputs.shape={inputs.shape}")
 
             optimizer.zero_grad()  # Reset gradients for each batch
             outputs = model(inputs)
-            loss = criterion(outputs[:, :-1, :], targets[:, 1:, :])
+            loss = criterion(outputs, targets)
             loss.backward()
             optimizer.step()
 
@@ -241,7 +265,7 @@ def count_parameters(model):
 def main(args):
     seed_random(args.seed)
 
-    train_loader, val_loader, input_dim = generate_audio_datasets(args)
+    dataset, train_loader, val_loader, input_dim = generate_audio_datasets(args)
 
     # RNN performs much better
     #model = AudioRNN(args, dim=input_dim)
@@ -250,18 +274,19 @@ def main(args):
 
     print(f"Model parameters: {count_parameters(model)}")
 
-    train(model, train_loader, val_loader, args)
+    train(dataset, model, train_loader, val_loader, args)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train an RNN on audio data for next-sequence prediction.')
-    parser.add_argument('--file_path', type=str, default="example.flac", help='Path to the input audio file.')
     parser.add_argument('--epochs', type=int, default=5000, help='Number of epochs to train.')
-    parser.add_argument('--lr', type=float, default=0.1, help='Learning rate.')
+    parser.add_argument('--lr', type=float, default=0.001, help='Learning rate.')
     parser.add_argument('--hidden_size', type=int, default=128, help='Size of RNN hidden state.')
-    parser.add_argument('--batch_size', type=int, default=16, help='Size of RNN hidden state.')
+    parser.add_argument('--batch_size', type=int, default=64, help='Size of RNN hidden state.')
     parser.add_argument('--segment_length', type=int, default=1024, help='Input segment size.')
     parser.add_argument('--seed', type=int, default=12345, help='Seed for randomization of data loader')
-    parser.add_argument('--dir', type=str, default=".", help='Directory to scan for audio files')
+    parser.add_argument('--dir', type=str, default="./data", help='Directory to scan for audio files')
+    parser.add_argument('--compile', action='store_true', help='Enable torch.compile')
+    parser.add_argument('--mgpu', action='store_true', help='Enable multi-GPU training')
     args = parser.parse_args()
 
     main(args)
