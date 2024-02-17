@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.init as init
+import math
 
 # Expected input shape [B, D, L]
 # Auto-regressive sum for input:
@@ -12,7 +13,7 @@ class AutoRegressiveCausalInput(nn.Module):
         self.Ku = Ku
         self.conv = nn.Conv1d(D_in, D_out, kernel_size=Ku, padding=Ku-1, bias=False)
 
-        init.xavier_uniform_(self.conv.weight)
+        init.kaiming_uniform_(self.conv.weight, a=math.sqrt(5))
 
     def forward(self, x):
         y = self.conv(x)

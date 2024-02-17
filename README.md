@@ -16,6 +16,9 @@ pip install -U -r requirements.txt
 
 # Pre-generate Hankel spectra and run unit tests
 pytest
+
+# Download audio dataset for training
+python download_dataset.py
 ```
 
 ## Train

@@ -1,6 +1,9 @@
 import torch
 import torch.nn as nn
+import torch.nn.init as init
 import torch.nn.functional as F
+
+import math
 
 from ar_stu import AR_STULayer
 
@@ -9,15 +12,17 @@ class FeedForward(nn.Module):
     def __init__(self, d_in, d_out, mult=4):
         super(FeedForward, self).__init__()
 
+        # Default init works well for these
         hidden_size = d_in * mult
-        self.net = nn.Sequential(
-            nn.Linear(d_in, hidden_size),
-            nn.GELU(),
-            nn.Linear(hidden_size, d_out)
-        )
+        self.proj_in = nn.Linear(d_in, hidden_size)
+        self.act = nn.GELU()
+        self.proj_out = nn.Linear(hidden_size, d_out)
 
     def forward(self, x):
-        return self.net(x)
+        y = self.proj_in(x)
+        y = self.act(y)
+        y = self.proj_out(y)
+        return y
 
 # Causal average pooling: Output at time T is the average of prior values.
 class CausalAveragePooling(nn.Module):
@@ -32,16 +37,18 @@ class CausalAveragePooling(nn.Module):
         return causal_average # [B, L, D]
 
 class SpectralSSM(nn.Module):
-    def __init__(self, d_in, d_hidden, d_out, L, num_layers=2):
+    def __init__(self, d_in, d_hidden, d_out, L, num_layers=1):
         super(SpectralSSM, self).__init__()
         self.d_in = d_in
         self.d_hidden = d_hidden
         self.d_out = d_out
 
         # Fig.5: Embedding Layer
+        # Default init works well for these
         self.proj_in = nn.Linear(d_in, d_hidden, bias=False)
 
         # Fig.5: Dense (output) Layer [B, L, d_out]
+        # Default init works well for these
         self.proj_out = nn.Linear(d_hidden, d_out, bias=False)
 
         # Repeat num_layers times:
@@ -61,15 +68,10 @@ class SpectralSSM(nn.Module):
             layer.reset()
 
     def forward(self, u):
-        assert u.dim() == 3, "Input shape must be [B, L, D]"
-        B, L, D = u.shape
-
         y = self.proj_in(u)
         for layer in self.layers:
             y = layer(y)
-
         y = self.time_pool(y)
-
         y = self.proj_out(y) # [B, L, d_out]
-
+        #print(f"y = {y}")
         return y

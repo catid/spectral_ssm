@@ -5,6 +5,10 @@ import numpy as np
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
+# Prettify printing tensors when debugging
+import lovely_tensors as lt
+lt.monkey_patch()
+
 
 ################################################################################
 # Model
@@ -95,16 +99,25 @@ def preprocess_audio(file_path):
     mfcc_scaled = scaler.fit_transform(mfcc.numpy())
 
     # Swap dimensions: We want mfcc features in dim=-1
-    return np.transpose(mfcc_scaled)
+    result = np.transpose(mfcc_scaled)
+
+    return result
 
 def segment_audio(mfcc, segment_length):
     num_segments = mfcc.shape[0] // segment_length
     segments = mfcc[:num_segments*segment_length].reshape(num_segments, segment_length, -1)
     return segments
 
+import os
 
 class AudioSegmentDataset(Dataset):
     def __init__(self, args):
+
+        for filename in os.listdir(args.dir):
+            # torchaudio does not have an API to check if a file extension is supported
+            if filename.lower().endswith(('.wav', '.mp3', '.flac')):
+                print(f"filename: {filename}")
+
         processed_audio = preprocess_audio(args.file_path)
 
         # Segments are (samples, sample length=500, features=12)
@@ -173,6 +186,7 @@ def train(model, train_loader, val_loader, args):
         sum_train_loss = 0.0
         for inputs, targets in train_loader:
             inputs, targets = inputs.to(device), targets.to(device)
+            print(f"epoch {epoch} inputs.shape={inputs.shape}")
 
             optimizer.zero_grad()  # Reset gradients for each batch
             outputs = model(inputs)
@@ -191,6 +205,8 @@ def train(model, train_loader, val_loader, args):
             for inputs, targets in val_loader:
                 inputs, targets = inputs.to(device), targets.to(device)
                 outputs = model(inputs)
+                #print(f"inputs: {inputs}")
+                #print(f"outputs: {outputs}")
                 loss = criterion(outputs[:, :-1, :], targets[:, 1:, :])
                 sum_val_loss += loss.item()
 
@@ -200,7 +216,7 @@ def train(model, train_loader, val_loader, args):
         epochs_tqdm.set_description(f"Epoch {epoch+1}/{args.epochs}, Train Loss: {avg_train_loss:.6f}, Val Loss: {avg_val_loss:.6f}")
         epochs_tqdm.refresh()  # to show immediately the update
 
-        if epoch % 100 == 99:
+        if epoch % 10 == 9:
             print(f"\n")
 
     print(f"\nFinal Epoch {epoch+1}/{args.epochs}, Train Loss: {avg_train_loss:.6f}, Val Loss: {avg_val_loss:.6f}\n")
@@ -242,9 +258,10 @@ if __name__ == "__main__":
     parser.add_argument('--epochs', type=int, default=5000, help='Number of epochs to train.')
     parser.add_argument('--lr', type=float, default=0.1, help='Learning rate.')
     parser.add_argument('--hidden_size', type=int, default=128, help='Size of RNN hidden state.')
-    parser.add_argument('--batch_size', type=int, default=1, help='Size of RNN hidden state.')
+    parser.add_argument('--batch_size', type=int, default=16, help='Size of RNN hidden state.')
     parser.add_argument('--segment_length', type=int, default=1024, help='Input segment size.')
     parser.add_argument('--seed', type=int, default=12345, help='Seed for randomization of data loader')
+    parser.add_argument('--dir', type=str, default=".", help='Directory to scan for audio files')
     args = parser.parse_args()
 
     main(args)
