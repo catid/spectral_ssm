@@ -11,6 +11,8 @@ class AR_STULayer(nn.Module):
     def __init__(self, D_in, D_out, L, K=16, Ku=3, Ky=2, alpha=0.9):
         super(AR_STULayer, self).__init__()
 
+        #self.bn = nn.BatchNorm1d(D_in)
+
         # Autoregressive sum for u (input) from Eq. 6
         self.autoregressive_u = AutoRegressiveCausalInput(D_in, D_out, Ku=Ku)
 
@@ -22,6 +24,8 @@ class AR_STULayer(nn.Module):
 
     def forward(self, u):
         u = u.permute(0, 2, 1) # Convert to [B, D, L]
+
+        #u = self.bn(u)
 
         # Spectral channelization and mixing via convolution
         y = self.convolution_layer(u)

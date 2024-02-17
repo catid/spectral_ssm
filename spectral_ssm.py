@@ -1,9 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.init as init
-import torch.nn.functional as F
-
-import math
 
 from ar_stu import AR_STULayer
 
@@ -69,9 +65,12 @@ class SpectralSSM(nn.Module):
 
     def forward(self, u):
         y = self.proj_in(u)
+
         for layer in self.layers:
-            y = layer(y)
-        y = self.time_pool(y)
+            y = y + layer(y)
+
+        # Not sure what the proper operation is here.  The paper does not describe this, and my guess seems wrong.
+        #y = self.time_pool(y)
+
         y = self.proj_out(y) # [B, L, d_out]
-        #print(f"y = {y}")
         return y

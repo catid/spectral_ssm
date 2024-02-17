@@ -6,8 +6,8 @@ import numpy as np
 #torch.backends.cudnn.benchmark = False
 
 # Prettify printing tensors when debugging
-import lovely_tensors as lt
-lt.monkey_patch()
+#import lovely_tensors as lt
+#lt.monkey_patch()
 
 
 ################################################################################
@@ -16,30 +16,29 @@ lt.monkey_patch()
 from spectral_ssm import SpectralSSM
 
 class AudioRNN(nn.Module):
-    def __init__(self, args, dim):
+    def __init__(self, dim, d_hidden):
         super(AudioRNN, self).__init__()
 
         # batch_first=True: The input/output will be batched
-        self.rnn = nn.RNN(dim, args.hidden_size, batch_first=True)
+        self.rnn = nn.RNN(dim, d_hidden, batch_first=True)
 
         # Project to output dim
-        self.fc = nn.Linear(args.hidden_size, dim)
+        self.fc = nn.Linear(d_hidden, dim)
 
-    def forward(self, x, training=True):
+    def forward(self, x):
         out, _ = self.rnn(x)
         out = self.fc(out)
         return out
 
 
 class SimpleMLP(nn.Module):
-    def __init__(self, dim):
+    def __init__(self, dim, d_hidden):
         super(SimpleMLP, self).__init__()
 
-        hidden_size = dim * 2
         self.net = nn.Sequential(
-            nn.Linear(dim, hidden_size),
+            nn.Linear(dim, d_hidden),
             nn.GELU(),
-            nn.Linear(hidden_size, dim)
+            nn.Linear(d_hidden, dim)
         )
 
     def forward(self, x):
@@ -65,12 +64,12 @@ class PreNormResidual(nn.Module):
         return self.norm(self.fn(x) + x)
 
 class AudioMLP(nn.Module):
-    def __init__(self, args, dim):
+    def __init__(self, dim, d_hidden):
         super(AudioMLP, self).__init__()
 
-        self.encode = PreNormResidual(dim, SimpleMLP(dim))
+        self.encode = PreNormResidual(dim, SimpleMLP(dim, d_hidden))
 
-    def forward(self, x, training=True):
+    def forward(self, x):
         x = self.encode(x)
         return x
 
@@ -138,9 +137,6 @@ class AudioSegmentDataset(Dataset):
 
         print(f"Loaded dataset shape: {self.segments.shape}")
 
-    def premove_to_gpu(self):
-        self.segments = torch.tensor(self.segments).to("cuda")
-
     def get_feature_dim(self):
         return self.segments.shape[2]
 
@@ -152,10 +148,10 @@ class AudioSegmentDataset(Dataset):
         segment = self.segments[idx]
 
         # Input features: All time steps except the last
-        input_features = segment[:-1]
+        input_features = torch.tensor(segment[:-1], dtype=torch.float32)
         
         # Target features: All time steps except the first
-        target_features = segment[1:]
+        target_features = torch.tensor(segment[1:], dtype=torch.float32)
 
         return input_features, target_features
 
@@ -187,9 +183,6 @@ def train(dataset, model, train_loader, val_loader, args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model.to(device)
-
-    if torch.cuda.is_available():
-        dataset.premove_to_gpu()
 
     if args.mgpu:
         if torch.cuda.device_count() > 1:
@@ -253,6 +246,8 @@ import argparse
 import random
 
 def seed_random(seed):
+    if seed == 0:
+        return
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -268,9 +263,9 @@ def main(args):
     dataset, train_loader, val_loader, input_dim = generate_audio_datasets(args)
 
     # RNN performs much better
-    model = AudioRNN(args, dim=input_dim)
-    #model = AudioMLP(args, dim=input_dim)
-    #model = SpectralSSM(d_in=input_dim, d_hidden=input_dim*2, d_out=input_dim, L=args.segment_length, num_layers=2)
+    #model = AudioRNN(dim=input_dim, d_hidden=input_dim*4) # val_loss=0.043
+    model = AudioMLP(dim=input_dim, d_hidden=input_dim*4) # val_loss=0.05
+    #model = SpectralSSM(d_in=input_dim, d_hidden=input_dim, d_out=input_dim, L=args.segment_length, num_layers=2)
 
     print(f"Model parameters: {count_parameters(model)}")
 
@@ -278,12 +273,11 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train an RNN on audio data for next-sequence prediction.')
-    parser.add_argument('--epochs', type=int, default=5000, help='Number of epochs to train.')
+    parser.add_argument('--epochs', type=int, default=100, help='Number of epochs to train.')
     parser.add_argument('--lr', type=float, default=0.001, help='Learning rate.')
-    parser.add_argument('--hidden_size', type=int, default=128, help='Size of RNN hidden state.')
     parser.add_argument('--batch_size', type=int, default=64, help='Size of RNN hidden state.')
     parser.add_argument('--segment_length', type=int, default=1024, help='Input segment size.')
-    parser.add_argument('--seed', type=int, default=12345, help='Seed for randomization of data loader')
+    parser.add_argument('--seed', type=int, default=42, help='Seed for randomization of data loader')
     parser.add_argument('--dir', type=str, default="./data", help='Directory to scan for audio files')
     parser.add_argument('--compile', action='store_true', help='Enable torch.compile')
     parser.add_argument('--mgpu', action='store_true', help='Enable multi-GPU training')

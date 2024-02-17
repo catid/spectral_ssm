@@ -9,15 +9,17 @@ def precompute_k_f(k):
     assert k.dtype != torch.float16 and k.dtype != torch.bfloat16, "Too much quality loss with fp16"
     k_f = torch.fft.rfft(k, n=fft_size) / fft_size
     k_f = k_f.unsqueeze(0).unsqueeze(2)
-    return k_f
+    return k_f.real, k_f.imag
 
 # This version has a precomputed k_f from precompute_k_f()
-def fft_causal_conv_fftk(u, k_f):
+def fft_causal_conv_fftk(u, k_f_real, k_f_imag):
     L = u.shape[-1]
     fft_size = 2*L
 
     u_f = torch.fft.rfft(u.to(torch.float), n=fft_size)
     u_f = u_f.unsqueeze(1)
+
+    k_f = torch.complex(k_f_real, k_f_imag)
 
     assert k_f.shape[-1] == fft_size//2+1, "fft_causal_conv_fftk: fft_k shape should be L//2+1"
 
@@ -49,7 +51,11 @@ class ConvolutionLayer(nn.Module):
         self.eigenvalues = nn.Parameter(torch.tensor(eigenvalues, dtype=torch.float).pow(0.25), requires_grad=False)
 
         eigenvectors = torch.tensor(eigenvectors, dtype=torch.float) # [k, L]
-        self.eigenvector_k_f = nn.Parameter(precompute_k_f(eigenvectors), requires_grad=False)
+
+        k_f_real, k_f_imag = precompute_k_f(eigenvectors)
+
+        self.eigenvector_k_f_real = nn.Parameter(k_f_real, requires_grad=False)
+        self.eigenvector_k_f_imag = nn.Parameter(k_f_imag, requires_grad=False)
 
         # K parallel D_in -> D_out learned projections
         self.M = nn.Parameter(torch.Tensor(K, D_in, D_out))
@@ -62,7 +68,7 @@ class ConvolutionLayer(nn.Module):
         assert self.D_in == D_in, "Unexpected input dimension"
         assert self.L == L, "Sequence length change is unsupported"
 
-        convolutions = fft_causal_conv_fftk(u, self.eigenvector_k_f)
+        convolutions = fft_causal_conv_fftk(u, self.eigenvector_k_f_real, self.eigenvector_k_f_imag)
 
         # Combined operations:
         # 1. Scale by k eigenvalues
