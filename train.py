@@ -222,9 +222,7 @@ def train(dataset, model, train_loader, val_loader, args):
             for inputs, targets in val_loader:
                 inputs, targets = inputs.to(device), targets.to(device)
                 outputs = model(inputs)
-                #print(f"inputs: {inputs}")
-                #print(f"outputs: {outputs}")
-                loss = criterion(outputs[:, :-1, :], targets[:, 1:, :])
+                loss = criterion(outputs, targets)
                 sum_val_loss += loss.item()
 
         avg_val_loss = sum_val_loss / len(val_loader)
@@ -263,9 +261,9 @@ def main(args):
     dataset, train_loader, val_loader, input_dim = generate_audio_datasets(args)
 
     # RNN performs much better
-    #model = AudioRNN(dim=input_dim, d_hidden=input_dim*4) # val_loss=0.043
-    model = AudioMLP(dim=input_dim, d_hidden=input_dim*4) # val_loss=0.05
-    #model = SpectralSSM(d_in=input_dim, d_hidden=input_dim, d_out=input_dim, L=args.segment_length, num_layers=2)
+    #model = AudioRNN(dim=input_dim, d_hidden=input_dim*4)
+    #model = AudioMLP(dim=input_dim, d_hidden=input_dim*4)
+    model = SpectralSSM(d_in=input_dim, d_hidden=input_dim, d_out=input_dim, L=args.segment_length, num_layers=2)
 
     print(f"Model parameters: {count_parameters(model)}")
 
@@ -274,7 +272,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train an RNN on audio data for next-sequence prediction.')
     parser.add_argument('--epochs', type=int, default=100, help='Number of epochs to train.')
-    parser.add_argument('--lr', type=float, default=0.001, help='Learning rate.')
+    parser.add_argument('--lr', type=float, default=0.01, help='Learning rate.')
     parser.add_argument('--batch_size', type=int, default=64, help='Size of RNN hidden state.')
     parser.add_argument('--segment_length', type=int, default=1024, help='Input segment size.')
     parser.add_argument('--seed', type=int, default=42, help='Seed for randomization of data loader')
