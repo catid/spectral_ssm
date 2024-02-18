@@ -19,7 +19,7 @@ class AudioRNN(nn.Module):
     def __init__(self, dim, d_hidden):
         super(AudioRNN, self).__init__()
 
-        # batch_first=True: The input/output will be batched
+        # batch_first=True: Expected input shape [B, L, D]
         self.rnn = nn.RNN(dim, d_hidden, batch_first=True)
 
         # Project to output dim
@@ -255,6 +255,11 @@ def seed_random(seed):
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
+def print_model_weights(model):
+    for name, param in model.named_parameters():
+        print(f"{name}:")
+        print(param.data)
+
 def main(args):
     seed_random(args.seed)
 
@@ -269,6 +274,9 @@ def main(args):
 
     train(dataset, model, train_loader, val_loader, args)
 
+    if args.print_weights:
+        print_model_weights(model)
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train an RNN on audio data for next-sequence prediction.')
     parser.add_argument('--epochs', type=int, default=100, help='Number of epochs to train.')
@@ -279,6 +287,7 @@ if __name__ == "__main__":
     parser.add_argument('--dir', type=str, default="./data", help='Directory to scan for audio files')
     parser.add_argument('--compile', action='store_true', help='Enable torch.compile')
     parser.add_argument('--mgpu', action='store_true', help='Enable multi-GPU training')
+    parser.add_argument('--print_weights', action='store_true', help='Print weights at the end to check them')
     args = parser.parse_args()
 
     main(args)
