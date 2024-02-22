@@ -88,7 +88,7 @@ class TestConvolutionLayer(unittest.TestCase):
 
         # Verify the shape of eigenvector_k_f
         expected_eigenvector_shape = (1, self.K, 1, self.L+1)
-        self.assertEqual(self.layer.eigenvector_k_f.shape, expected_eigenvector_shape,
+        self.assertEqual(self.layer.eigenvector_k_f_imag.shape, expected_eigenvector_shape,
                          "Shape of eigenvector_k_f is incorrect.")
 
     def test_forward_shape(self):

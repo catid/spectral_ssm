@@ -33,7 +33,8 @@ def fft_causal_conv_fftk(u, k_f_real, k_f_imag):
 # k.dtype should be float
 # FP16 does not support odd sizes, has terrible accuracy, and it is also not any faster.
 def fft_causal_conv(u, k):
-    return fft_causal_conv_fftk(u, precompute_k_f(k))
+    f_k_real, f_k_imag = precompute_k_f(k)
+    return fft_causal_conv_fftk(u, f_k_real, f_k_imag)
 
 class ConvolutionLayer(nn.Module):
     def __init__(self, D_in, D_out, L, K):
