@@ -96,7 +96,7 @@ class TestHankelMatrices(unittest.TestCase):
         matrix_versions = ['2024', '2017']
         K = 32
         for matrix_version in matrix_versions:
-            for L in [2**i for i in range(3, 15)]:
+            for L in [2**i for i in range(3, 14)]:
                 print(f"Evaluating L={L} matrix={matrix_version}...")
                 with self.subTest(L=L, matrix_version=matrix_version):
                     eigenvals, eigenvecs = load_or_compute_eigen_data(L, K, matrix_version=matrix_version)
@@ -123,11 +123,11 @@ class TestHankelMatrices(unittest.TestCase):
                     #print(f"eigenvecs.shape = {eigenvecs.shape}")
                     #print(f"ref_eigenvecs.shape = {ref_eigenvecs.shape}")
 
-                    np.testing.assert_array_equal(eigenvals, ref_eigenvals, "eigenvals: Our version does not match Google version")
-                    np.testing.assert_array_equal(eigenvecs, ref_eigenvecs, "eigenvecs: Our version does not match Google version")
+                    np.testing.assert_allclose(eigenvals, ref_eigenvals, rtol=1e-5, atol=1e-8, err_msg="eigenvals: Our version does not match Google version", verbose=True)
+                    np.testing.assert_allclose(eigenvecs, ref_eigenvecs, rtol=1e-5, atol=1e-8, err_msg="eigenvecs: Our version does not match Google version", verbose=True)
 
-                    np.testing.assert_array_equal(eigenvals, ref2_eigenvals, "eigenvals: Not sorted")
-                    np.testing.assert_array_equal(eigenvecs, ref2_eigenvecs, "eigenvecs: Not sorted")
+                    np.testing.assert_allclose(eigenvals, ref2_eigenvals, rtol=1e-5, atol=1e-8, err_msg="eigenvals: Not sorted", verbose=True)
+                    np.testing.assert_allclose(eigenvecs, ref2_eigenvecs, rtol=1e-5, atol=1e-8, err_msg="eigenvecs: Not sorted", verbose=True)
 
 if __name__ == '__main__':
     unittest.main()

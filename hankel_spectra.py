@@ -22,7 +22,6 @@ def optimized_hankel_matrix_2024(L):
 
 # Function to compute and return truncated spectral decomposition
 def truncated_spectral_decomp(A, k=32):
-    L = A.shape[0]
     assert A.shape[0] == A.shape[1], "Must be square"
 
     eigenvals, eigenvecs = np.linalg.eigh(A)
