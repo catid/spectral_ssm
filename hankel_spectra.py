@@ -25,21 +25,9 @@ def truncated_spectral_decomp(A, k=32):
     L = A.shape[0]
     assert A.shape[0] == A.shape[1], "Must be square"
 
-    if k >= L:
-        eigenvals, eigenvecs = np.linalg.eigh(A)
-    else:
-        eigenvals, eigenvecs = linalg.eigsh(
-            A=A,
-            k=k,
-            which="LM",
-            return_eigenvectors=True,
-        )
+    eigenvals, eigenvecs = np.linalg.eigh(A)
 
-    idx = eigenvals.argsort()[::-1]
-    eigenvals = eigenvals[idx]
-    eigenvecs = eigenvecs[:, idx]
-
-    return eigenvals, eigenvecs.T
+    return eigenvals[-k:], eigenvecs[:, -k:]
 
 def load_or_compute_eigen_data(L=256, K=16, matrix_version="2024", cache_file="hankel_spectra.npz"):
     eigenvals_key = f'eigenvals_{matrix_version}_L_{L}'
@@ -53,7 +41,7 @@ def load_or_compute_eigen_data(L=256, K=16, matrix_version="2024", cache_file="h
                 eigenvals = data[eigenvals_key]
                 eigenvecs = data[eigenvecs_key]
                 print(f"Loaded precomputed eigenvalues and eigenvectors for version {matrix_version}, L={L} from cache.")
-                return eigenvals[:K], eigenvecs[:K]
+                return eigenvals[:K], eigenvecs[:, :K]
 
     # If the data is not available in the cache, compute it
     if matrix_version == '2017':
@@ -75,4 +63,4 @@ def load_or_compute_eigen_data(L=256, K=16, matrix_version="2024", cache_file="h
     np.savez(cache_file, **all_data)
 
     print(f"Computed and cached eigenvalues and eigenvectors for version {matrix_version}, L={L}.")
-    return eigenvals[:K], eigenvecs[:K]
+    return eigenvals[:K], eigenvecs[:, :K]
