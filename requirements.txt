@@ -5,3 +5,4 @@ einops
 torchaudio
 tqdm
 pytest
+requests
