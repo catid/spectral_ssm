@@ -51,6 +51,8 @@ class ConvolutionLayer(nn.Module):
         # Store k eigenvalues^^(1/4)
         self.eigenvalues = nn.Parameter(torch.tensor(eigenvalues, dtype=torch.float).pow(0.25), requires_grad=False)
 
+        eigenvectors = eigenvectors.T
+
         eigenvectors = torch.tensor(eigenvectors, dtype=torch.float) # [k, L]
 
         k_f_real, k_f_imag = precompute_k_f(eigenvectors)
