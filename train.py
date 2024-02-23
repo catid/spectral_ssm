@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import numpy as np
 
+from models.s4 import S4Block
+
 #torch.backends.cudnn.deterministic = True
 #torch.backends.cudnn.benchmark = False
 
@@ -14,35 +16,6 @@ import numpy as np
 # Model
 
 from spectral_ssm import SpectralSSM
-
-class AudioRNN(nn.Module):
-    def __init__(self, dim, d_hidden):
-        super(AudioRNN, self).__init__()
-
-        # batch_first=True: Expected input shape [B, L, D]
-        self.rnn = nn.RNN(dim, d_hidden, batch_first=True)
-
-        # Project to output dim
-        self.fc = nn.Linear(d_hidden, dim)
-
-    def forward(self, x):
-        out, _ = self.rnn(x)
-        out = self.fc(out)
-        return out
-
-
-class SimpleMLP(nn.Module):
-    def __init__(self, dim, d_hidden):
-        super(SimpleMLP, self).__init__()
-
-        self.net = nn.Sequential(
-            nn.Linear(dim, d_hidden),
-            nn.GELU(),
-            nn.Linear(d_hidden, dim)
-        )
-
-    def forward(self, x):
-        return self.net(x)
 
 import torch.nn.functional as F
 
@@ -63,14 +36,64 @@ class PreNormResidual(nn.Module):
     def forward(self, x):
         return self.norm(self.fn(x) + x)
 
-class AudioMLP(nn.Module):
-    def __init__(self, dim, d_hidden):
-        super(AudioMLP, self).__init__()
-
-        self.encode = PreNormResidual(dim, SimpleMLP(dim, d_hidden))
+class S4Layer(nn.Module):
+    def __init__(self, dim):
+        super().__init__()
+        self.net = S4Block(dim)
 
     def forward(self, x):
-        x = self.encode(x)
+        x = x.transpose(-1, -2) # [B, L, D] -> [B, D, L]
+        y, _ = self.net(x)
+        y = y.transpose(-1, -2) # [B, D, L] -> [B, L, D]
+        return y
+
+class AudioS4(nn.Module):
+    def __init__(self, dim, num_layers=3):
+        super().__init__()
+
+        d_hidden = dim * 2
+        self.proj_in = nn.Linear(dim, d_hidden)
+        self.proj_out = nn.Linear(d_hidden, dim)
+
+        self.layers = nn.ModuleList()
+        for _ in range(num_layers):
+            layer = PreNormResidual(d_hidden, S4Layer(d_hidden))
+            self.layers.append(layer)
+
+    def forward(self, x):
+        x = self.proj_in(x)
+        for layer in self.layers:
+            x = layer(x)
+        x = self.proj_out(x)
+        return x
+
+class RNNLayer(nn.Module):
+    def __init__(self, dim):
+        super().__init__()
+        self.net = nn.RNN(dim, dim, batch_first=True)
+
+    def forward(self, x):
+        y, _ = self.net(x)
+        return y
+
+class AudioRNN(nn.Module):
+    def __init__(self, dim, num_layers=3):
+        super().__init__()
+
+        d_hidden = dim * 2
+        self.proj_in = nn.Linear(dim, d_hidden)
+        self.proj_out = nn.Linear(d_hidden, dim)
+
+        self.layers = nn.ModuleList()
+        for _ in range(num_layers):
+            layer = PreNormResidual(d_hidden, RNNLayer(d_hidden))
+            self.layers.append(layer)
+
+    def forward(self, x):
+        x = self.proj_in(x)
+        for layer in self.layers:
+            x = layer(x)
+        x = self.proj_out(x)
         return x
 
 
@@ -266,9 +289,9 @@ def main(args):
     dataset, train_loader, val_loader, input_dim = generate_audio_datasets(args)
 
     # RNN performs much better
-    #model = AudioRNN(dim=input_dim, d_hidden=input_dim*4)
-    #model = AudioMLP(dim=input_dim, d_hidden=input_dim*4)
+    #model = AudioRNN(dim=input_dim)
     model = SpectralSSM(d_in=input_dim, d_hidden=input_dim, d_out=input_dim, L=args.segment_length, num_layers=2)
+    #model = AudioS4(dim=input_dim)
 
     print(f"Model parameters: {count_parameters(model)}")
 
